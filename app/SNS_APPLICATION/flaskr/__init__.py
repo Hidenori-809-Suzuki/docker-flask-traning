@@ -21,6 +21,6 @@ def create_app():
     from flaskr.views import bp
     app.register_blueprint(bp)
     db.init_app(app)
-    migrate.init_app(app, db)
+    migrate.init_app(app)
     login_manager.init_app(app)
     return app
