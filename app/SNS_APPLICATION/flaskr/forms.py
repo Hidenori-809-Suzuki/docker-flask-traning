@@ -89,3 +89,12 @@ class ChangePasswordForm(Form):
     def validate_password(self, field):
         if len(field.data) < 8:
             raise ValidationError('パスワードは8文字以上です')
+
+class UserSearchForm(Form):
+    username = StringField('名前: ', validators=[DataRequired()])
+    submit = SubmitField('ユーザー検索')
+
+class ConnectForm(Form):
+    connect_condition = HiddenField()
+    to_user_id = HiddenField()
+    submit = SubmitField()

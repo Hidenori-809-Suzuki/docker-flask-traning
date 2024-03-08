@@ -2,18 +2,19 @@ from datetime import datetime
 
 from flask import (
     Blueprint, abort, request, render_template,
-    redirect, url_for, flash
+    redirect, url_for, flash, session
 )
 from flask_login import (
     login_user, login_required, logout_user, current_user
 )
 from flaskr.models import (
-    User, PasswordResetToken
+    User, PasswordResetToken, UserConnect
 )
 from flaskr import db
 
 from flaskr.forms import (
-    LoginForm, RegisterForm, ResetPasswordForm, ForgotPasswordForm, UserForm, ChangePasswordForm
+    LoginForm, RegisterForm, ResetPasswordForm, ForgotPasswordForm, 
+    UserForm, ChangePasswordForm, UserSearchForm, ConnectForm
 )
 
 
@@ -135,3 +136,42 @@ def change_password():
         flash('パスワードの更新に成功しました')
         return redirect(url_for('app.user'))
     return render_template('change_password.html', form=form)
+
+@bp.route('/user_search', methods=['GET', 'POST'])
+@login_required
+def user_search():
+    form = UserSearchForm(request.form)
+    connect_form = ConnectForm()
+    session['url'] = 'app.user_search'
+    users = None
+    if request.method == 'POST' and form.validate():
+        username = form.username.data
+        users = User.search_by_name(username)
+    return render_template('user_search.html', form=form, connect_form=connect_form, users=users)
+
+@bp.route('/connect_user', methods=['POST'])
+@login_required
+def connect_user():
+    form = ConnectForm(request.form)
+    if request.method == 'POST' and form.validate():
+        if form.connect_condition.data == 'connect':
+            new_connect = UserConnect(current_user.get_id(), form.to_user_id.data)
+            with db.session.begin(subtransactions=True):
+                new_connect.create_new_connect()
+            db.session.commit()
+        elif form.connect_condition.data == 'accept':
+            connect = UserConnect.select_by_from_user_id(form.to_user_id.data)
+            if connect:
+                with db.session.begin(subtransactions=True):
+                    connect.update_status()
+                db.session.commit()
+    next_url = session.pop('url', 'app:home')
+    return redirect(url_for(next_url))
+
+@bp.app_errorhandler(404)
+def page_not_found(e):
+    return redirect(url_for('app.home'))
+
+@bp.app_errorhandler(500)
+def server_error(e):
+    return render_template('500.html'), 500
